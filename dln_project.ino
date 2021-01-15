@@ -14,13 +14,13 @@ void setup() {
 }
 
 void loop() {
-  String text = "Hallo Welt! Das wird hier nicht alles auf die erste Zeile passen.";  
+  String text = "Hallo Welt und DLN-Kurs!";  
 
-  epd.Reset();
+  //epd.Reset();
   if (epd.Init() != 0) {
     return;
   }
-  epd.ClearFrame();
+  //epd.ClearFrame();
 
   // read 'text', cast 'const char*' to 'char*'
   char *m = const_cast<char*>(text.c_str() /*returns const char* */);
