@@ -8,6 +8,7 @@
 // object for display
 Epd epd;
 
+//
 void setup() {
   Serial.begin(9600);
   while (!Serial);
