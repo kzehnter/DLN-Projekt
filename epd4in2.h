@@ -33,7 +33,7 @@
 #define EPD_WIDTH       400
 #define EPD_HEIGHT      300
 
-// EPD4IN2 commands
+// EPD4IN2 commands //CHANGE: use with Epd::SendCommand()
 #define PANEL_SETTING                               0x00
 #define POWER_SETTING                               0x01
 #define POWER_OFF                                   0x02

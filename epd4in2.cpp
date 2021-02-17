@@ -410,10 +410,8 @@ void Epd::ClearFrame(void) {
         SendData(0xFF);  
     }  
     DelayMs(2);
-	SetLut();
-	SendCommand(DISPLAY_REFRESH); 
-    DelayMs(100);
-    WaitUntilIdle();
+    // CHANGE: was just contents of DisplayFrame()
+	  DisplayFrame();
 }
 
 /**

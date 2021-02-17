@@ -6,25 +6,17 @@
 #define UNCOLORED   1
 
 // object for display
-Epd epd;
+Epd display;
+const char text[] = "Hallo Welt und DLN-Kurs! Das hier ist ein Test";
 
-//
-void setup() {
-  Serial.begin(9600);
-  while (!Serial);
-}
-
-void loop() {
-  String text = "Hallo Welt und DLN-Kurs!";  
-
-  //epd.Reset();
-  if (epd.Init() != 0) {
+void setup() {    
+  if (display.Init() != 0) {
     return;
   }
-  //epd.ClearFrame();
+  display.ClearFrame();
 
   // read 'text', cast 'const char*' to 'char*'
-  char *m = const_cast<char*>(text.c_str() /*returns const char* */);
+  char *m = const_cast<char*>(text /*returns const char* */);
   // break m into pieces with delimiter \n
   char* stuff = strtok(m, "\n");
 
@@ -36,21 +28,20 @@ void loop() {
   while (stuff != NULL) {
     int height = 24;
 
-    int nothing = UNCOLORED;
-    int color = COLORED;
-    
     Paint paint(image, 400, height);
     
-    paint.Clear(nothing);
-    paint.DrawStringAt(0, 3, stuff, &Font20, color);
-    epd.SetPartialWindow(paint.GetImage(), 0, y, paint.GetWidth(), paint.GetHeight());
+    paint.Clear(UNCOLORED);
+    paint.DrawStringAt(0, 3, stuff, &Font20, COLORED);
+    display.SetPartialWindow(paint.GetImage(), 0, y, paint.GetWidth(), paint.GetHeight());
 
     y += height;
     stuff = strtok(NULL, "\n");
     x++;
   }
-
-  epd.DisplayFrame();
-  epd.Sleep();
-  delay(10000);
+  display.DisplayFrame();
+  display.Sleep();
 }
+
+void loop() {
+//  delay(10000);
+};
