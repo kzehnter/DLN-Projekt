@@ -7,13 +7,13 @@
 #define UNCOLORED   1
 
 // WLAN
-char ssid[] = "WLAN-10.";
-char pass[] = "}&Xt34DmMq/<*d-M";
+const char ssid[] = "WLAN-10.";
+const char pass[] = "}&Xt34DmMq/<*d-M";
 
 // Telegram
 WiFiSSLClient client;
-const char url[] = "https://api.telegram.org/";
-String botEndPoint = "botAAEpr0T2dvKmEYfsniMDOI8iQmFUi0rGvK0/getUpdates/getUpdates";
+const char url[] = "api.telegram.org";
+String botEndPoint = "/bot1411748234:AAEpr0T2dvKmEYfsniMDOI8iQmFUi0rGvK0/getUpdates?offset=-1";
 const char sha1[] = "F2:AD:29:9C:34:48:DD:8D:F4:CF:52:32:F6:57:33:68:2E:81:C1:90";
 
 // Display
@@ -21,10 +21,18 @@ Epd display;
 const char testText[] = "Hallo Welt und DLN-Kurs! Das hier ist ein Test";
 
 void setup() {
-  //if (!connectWiFi()) return;
+  Serial.begin(9600);
+  while(!Serial);
+  
+  if (!connectWiFi()) return;
   //const char text[] = getText()
-  //if (getText() == null) return;   
-  if (!writeOnDisplay(testText)) return; 
+  //if (getText() == NULL) return;
+  String temp = getText();
+  char rawMessage[temp.length() + 1];
+  temp.toCharArray(rawMessage, temp.length() + 1); 
+  Serial.println("Got message"); 
+  Serial.println(temp); 
+  //if (!writeOnDisplay(rawMessage)) return;
 }
 
 void loop() {
@@ -65,22 +73,21 @@ bool writeOnDisplay(const char text[]){
   return true;
 }
 
-char* getText(){
-  short responseCode = 0;
-  int updateID = 0;
-  char* answer;
-  
-  if (!client.connect(url, 443)) return NULL; 
-  client.println("GET " + botEndPoint + "?offset=211608644" /*+ (updateID + 1)*/);
+String getText(){
+  if (!client.connect(url, 443)) return ""; 
+  Serial.println("443");
+  client.println("GET " + botEndPoint);
   client.println("Content-Type: application/json");
   client.println();
 
-  int i = 0;
-  while(client.available()) {
-    answer[i] = client.read();
-    i++;
+  while (!client.available()) ;
+
+  String answer = "";
+  while (client.available()) {
+    char c = client.read();
+    answer += c;
   }
   client.println("Connection: close");
   client.stop();
-  return
+  return answer;
 }
