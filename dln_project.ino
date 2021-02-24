@@ -5,6 +5,9 @@
 
 #define COLORED     0
 #define UNCOLORED   1
+#define BUFSIZE     800
+
+static char buf[BUFSIZE+1];
 
 // WLAN
 const char ssid[] = "WLAN-10.";
@@ -14,7 +17,6 @@ const char pass[] = "}&Xt34DmMq/<*d-M";
 WiFiSSLClient client;
 const char url[] = "api.telegram.org";
 String botEndPoint = "/bot1411748234:AAEpr0T2dvKmEYfsniMDOI8iQmFUi0rGvK0/getUpdates?offset=-1";
-const char sha1[] = "F2:AD:29:9C:34:48:DD:8D:F4:CF:52:32:F6:57:33:68:2E:81:C1:90";
 
 // Display
 Epd display;
@@ -27,11 +29,8 @@ void setup() {
   if (!connectWiFi()) return;
   //const char text[] = getText()
   //if (getText() == NULL) return;
-  String temp = getText();
-  char rawMessage[temp.length() + 1];
-  temp.toCharArray(rawMessage, temp.length() + 1); 
-  Serial.println("Got message"); 
-  Serial.println(temp); 
+  const char *rawMessage = getText(); 
+  Serial.println(rawMessage); 
   //if (!writeOnDisplay(rawMessage)) return;
 }
 
@@ -73,21 +72,30 @@ bool writeOnDisplay(const char text[]){
   return true;
 }
 
-String getText(){
+char * getText(){
   if (!client.connect(url, 443)) return ""; 
-  Serial.println("443");
+  Serial.println("Connected");
   client.println("GET " + botEndPoint);
   client.println("Content-Type: application/json");
   client.println();
 
-  while (!client.available()) ;
-
-  String answer = "";
-  while (client.available()) {
-    char c = client.read();
-    answer += c;
+  
+  int j = 0;
+  bool lastEOL = false;
+  while (j++ != 50) {
+    if (client.available()) {
+      int i = 0;
+      char c;
+      while (client.available() && (i < BUFSIZE)) {
+        c = client.read();
+        buf[i++] = c;
+      }
+      buf[i] = '\0';
+    } else {
+      delay(100);
+    }
   }
   client.println("Connection: close");
   client.stop();
-  return answer;
+  return buf;
 }

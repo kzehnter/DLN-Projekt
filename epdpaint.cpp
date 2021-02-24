@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 
+// CHANGE: from avr/pgmspace.h to local pgmspace
 #include <pgmspace.h>
 #include "epdpaint.h"
 

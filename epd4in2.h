@@ -33,7 +33,8 @@
 #define EPD_WIDTH       400
 #define EPD_HEIGHT      300
 
-// EPD4IN2 commands //CHANGE: use with Epd::SendCommand()
+// EPD4IN2 commands 
+// CHANGE: use with Epd::SendCommand()
 #define PANEL_SETTING                               0x00
 #define POWER_SETTING                               0x01
 #define POWER_OFF                                   0x02
@@ -61,7 +62,8 @@
 #define TCON_SETTING                                0x60
 #define RESOLUTION_SETTING                          0x61
 #define GSST_SETTING                                0x65
-#define GET_STATUS                                  0x71
+// CHANGE: from GET_STATUS because USB library has same constant
+#define GET_STATUSEPD                               0x71
 #define AUTO_MEASUREMENT_VCOM                       0x80
 #define READ_VCOM_VALUE                             0x81
 #define VCM_DC_SETTING                              0x82
