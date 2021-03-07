@@ -10,8 +10,8 @@
 #define OPTIONSNR   1
 #define FONTNR      5
 
-char buf[BUFSIZE+1];                          // doppelt
-char *bufptr = buf;
+char buf[BUFSIZE+1];
+char * bufptr = buf;
 
 // Telegram
 WiFiSSLClient client;
@@ -20,17 +20,16 @@ const char url[] = "api.telegram.org";
 // Display
 Epd display;
 sFONT fonts[FONTNR] = {Font8,Font12,Font16,Font20,Font24};
+sFONT stdfont = Font20;
 
 void setup() {
   Serial.begin(9600);
   while(!Serial);
   
   if (!connectWiFi()) return;
-  getText(); 
-  if (buf[0] == 0) return;
-  convertText();
-  Serial.println(buf);
-  if (writeOnDisplay()) return;
+  if (!getText()) return; 
+  if (!convertText()) return;
+  if (!writeOnDisplay()) return;
 }
 
 void loop() {
@@ -53,134 +52,147 @@ bool connectWiFi(){
   return true;
 }
 
-/** Gets text from telegram bot and filters out the message text.
- *  Writes to buf
+/** Gets text from telegram bot and checks for escapes at readtime.
+ *  Writes to buf, uses HTTPS
  */
-void getText(){
-  if (!client.connect(url, 443)) return; 
-  Serial.println("Connected");
+bool getText(){
+  // ---- connect
+  if (!client.connect(url, 443)) return false;
   client.print("GET ");
-  client.println(botEndPoint);
+  client.println(botEndPoint);                              
   client.println("Content-Type: application/json");
   client.println();
 
+  // ---- read
   int j = 0;
-  bool backslash = false;
-  while (j++ != 50) {                                       // try reading at most 50 times 
+  bool backslash = false;                               // for escape check
+  while (j++ != 50) {                                   // try reading at most 50 times 
     if (client.available()) {
-      int i = 0;                                            // buf index
+      int i = 0;                                        // buf index
       char c;                                         
-      while (client.available() && (i < BUFSIZE)) {         // read until end of answer or end of buf
+      while (client.available() && (i < BUFSIZE+1)) {   // read until end of answer or end of buf
         c = client.read();
-        if (backslash) {                                    //                     
-          switch (c) {
-            case 'n':
-              buf[i++] = '\n';
+        if (backslash) {                                // if last char was '\\'                    
+          switch (c) {                                  // create matching escape sequence and put it at bufptr[i]
+            case 'n':                                   // prevents later strtok issues
+              bufptr[i++] = '\n';
               break; 
             case '\\':
-              buf[i++] = '\\';
+              bufptr[i++] = '\\';
               break;
-            case '"':
-              buf[i++] = '\"';
+            case '\"':
+              bufptr[i++] = '\"';
               break;
             case '\'':
-              buf[i++] = '\'';
+              bufptr[i++] = '\'';
               break;
           }
           backslash = false;
-        } else if (c == '\\') {                             // check for 
+        } else if (c == '\\') {                         // check for '\\' to form escape
           backslash = true; 
-        } else buf[i++] = c;
+        } else bufptr[i++] = c;
       }
-      buf[i] = '\0';                                        // null terminate buf
+      bufptr[i] = '\0';                                 // null terminate buf
     } else {
-      delay(100);                                           // wait after every reading try
+      delay(100);                                       // wait after every reading try
     }
   }
+
+  // ---- disconnect
   client.println("Connection: close");
-  client.stop();  
+  client.stop(); 
+  return (bufptr[0] != 0);                                  
 }
 
 /** Filters message and fits text to screen.
  *  Puts \n when end of screen is reached
  *  Checks for options and calculates last possible \n position
  *  Scans for \n and puts it in last position if there has been no \n
+ *  
+ *  Little bug: if the text reaches the end of the line and there is
+ *              a command-like structure afterwards (%3%) it will see
+ *              interpret it as a command because of '\n' before it
  */
-void convertText() {
-  char * temp = strstr(bufptr, "text");                        //  Takes everything from first "text" to end and
-  strncpy(bufptr, temp+7, strlen(temp)-12);                    //  cuts off 7 chars at the beginning and 5 chars at the end
-  buf[strlen(temp)-12] = '\0';
-  
-  int width = 14;
-  int counter = 28;
-  if (optionCheck(bufptr)) {
-    width = fonts[bufptr[1]-'0'].Width;
-    counter = 400/width + OPTIONSNR + 1;
+bool convertText() {
+  // ---- cut out text from server response
+  char * temp = strstr(bufptr, "text");                 // Takes everything from first "text" to end and
+  if (!temp) return false;
+  strncpy(bufptr, temp+7, strlen(temp)-12);             // cuts off 7 chars at the beginning and 5 chars at the end
+  buf[strlen(temp)-12] = '\0';                          // null terminate at the right point
+
+  // ---- scan text and fits it to screen size
+  int i = 1;
+  int width = stdfont.Width;                            // take width of stdfont
+  int counter = 400/width;                              // amount of chars per line for stdfont
+  if (optionCheck(bufptr)) {                            // if buf begins with options
+    width = fonts[bufptr[1]-'0'].Width;                 // set current char width
+    counter = 400/width;
+    i += OPTIONSNR + 2;                                 // increment i to right loop starting point
   }
-  for (int i = 1; i < strlen(bufptr)-1; i++) {
+  for (; i < strlen(bufptr)-1; i++) {
     counter--;
     if (counter == 0){
-      if (strlen(bufptr)<BUFSIZE) {           // at least 1 Byte left in memory for buffer
-        char * p = bufptr+i;
-        if(p) {
+      if (strlen(bufptr)<BUFSIZE) {                     // at least 1 Byte left in memory for buffer
+        char * p = bufptr+i;                            // create pointer to shift position
+        if(p) {                                         // if p doesnt point to 0 char
           rightShift(p);
           *p = '\n';
         }
-        i++;
       } else break;
     }
-    if (bufptr[i] == '\\' && bufptr[i+1] == 'n') {
-      if (optionCheck(bufptr+i+2)) {
-        width = fonts[bufptr[i+3]-'0'].Width;
-        i += OPTIONSNR + 3; // \n und %,%
+    if (bufptr[i] == '\n') {                                
+      if (optionCheck(bufptr+i+1)) {                    // check for options after '\n'
+        width = fonts[bufptr[i+2]-'0'].Width;           // set width
+        i += OPTIONSNR + 3; // \n und %,%               // adjust i to not confuse counter
       } else {
-        i += 1; 
+        i++;                                            // jump forward to not count '\n' with counter
       } 
       counter = 400/width;
     }
   }
+  return true;
 }
 
-/** 
- * 
+/** Checks for commands and writes to screen one sentence at a time.
  */
-int writeOnDisplay(){
-  if (display.Init() != 0) return 1;                        //init display with reset
-  display.ClearFrame();                                     //clear SRAM of display
-  unsigned char image[1500];                                //create small image buffer 
+bool writeOnDisplay(){
+  // ---- prepare display
+  if (display.Init() != 0) return false;                // init display with reset
+  display.ClearFrame();                                 // clear SRAM of display
+  unsigned char image[1500];                            // create small image buffer 
 
-  int height = 20;
+  // ---- read commands and write to paint object
+  int height = stdfont.Height;                          // height of stdfont
   int y = 0;
-  char * sentence = strtok(bufptr, "\n");
+  char * sentence = strtok(bufptr, "\n");               // tokenized char pointer -> write 1 sentence at a time to paint
   bool commandsExist = false;
   char commands[OPTIONSNR];
 
-  while (sentence != NULL) {                                             //value of sentence if at \0 char while will stop
+  while (sentence != NULL) {                            // value of sentence if at \0 char while will stop
+    // ---- check for commands
     if (optionCheck(sentence)) {  
         commandsExist = true;   
-        strncpy(commands, sentence+1, OPTIONSNR);                 //commands now contains all Option-chars
-        height = fonts[commands[0]-'0'].Height;                   //command converted to int for fontsize and its height
-        sentence += 2 + OPTIONSNR;                                // 2 "%" and number of Options
+        strncpy(commands, sentence+1, OPTIONSNR);       // commands now contains all Option-chars
+        height = fonts[commands[0]-'0'].Height;         // command converted to int for fontsize and its height
+        sentence += 2 + OPTIONSNR;                      // 2 "%" and number of Options
     }
     Paint paint(image, 400, height);
-    Serial.println(sentence);
-
-    // checks command and chooses right fontsize
+    paint.Clear(UNCOLORED);
+    
+    // ---- check command and choose right fontsize
     if (commandsExist) {      
-      paint.Clear(UNCOLORED);
       paint.DrawStringAt(0, 2, sentence, &fonts[commands[0]-'0'], COLORED); 
-    } else {
-      paint.Clear(UNCOLORED);
-      paint.DrawStringAt(0, 2, sentence, &Font20, COLORED);  //put text on paint
+    } else {  
+      paint.DrawStringAt(0, 2, sentence, &stdfont, COLORED);
     }
-                                                      //define area for paint on display 
+    // ---- define area for paint on display 
     display.SetPartialWindow(paint.GetImage(), 0, y, paint.GetWidth(), paint.GetHeight());
     y += height;
-    sentence = strtok(NULL, "\n");
+    sentence = strtok(NULL, "\n");                      // move to next token
   }
-  display.DisplayFrame();                             //refresh display -> shows image
-  display.Sleep();                                    //display back in deep sleep
-  return 0;
+  display.DisplayFrame();                               // refresh display -> shows image
+  display.Sleep();                                      // display back in deep sleep
+  return true;
 }
 
 /** Checks validity of options.
