@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <WiFi101.h>
+#include <RTCZero.h>
 #include "epd4in2.h"
 #include "epdpaint.h"
 #include "arduino_secrets.h"
@@ -10,14 +11,31 @@
 #define OPTIONSNR   1
 #define FONTNR      5
 
+// ---- RealTimeClock Module
+RTCZero rtc;
+
+/* Change these values to set the current initial time */
+const byte seconds = 0;
+const byte minutes = 0;
+const byte hours = 0;
+
+/* Change these values to set the current initial date */
+const byte day = 10;
+const byte month = 3;
+const byte year = 21;
+
+const byte alarmSec = 0;
+const byte alarmMin = 1;
+const byte alarmHour = 0;
+
 char buf[BUFSIZE+1];
 char * bufptr = buf;
 
-// Telegram
+// ---- Telegram
 WiFiSSLClient client;
 const char url[] = "api.telegram.org";
 
-// Display
+// ---- Display
 Epd display;
 sFONT fonts[FONTNR] = {Font8,Font12,Font16,Font20,Font24};
 sFONT stdfont = Font20;
@@ -25,15 +43,24 @@ sFONT stdfont = Font20;
 void setup() {
   Serial.begin(9600);
   while(!Serial);
+
+  WiFi.maxLowPowerMode();
   
+  rtc.begin();
+  rtc.setTime(hours, minutes, seconds);
+  rtc.setDate(day, month, year);
+  rtc.setAlarmTime(alarmHour, alarmMin, alarmSec);          //change
+  rtc.enableAlarm(rtc.MATCH_HHMMSS);
+  rtc.attachInterrupt(alarmMatch);
+  rtc.standbyMode();
+}
+
+void loop() {  
   if (!connectWiFi()) return;
   if (!getText()) return; 
   if (!convertText()) return;
   if (!writeOnDisplay()) return;
-}
-
-void loop() {
-//  delay(10000);
+  delay(10000);
 };
 
 /** Connects to wifi
@@ -101,7 +128,7 @@ bool getText(){
   // ---- disconnect
   client.println("Connection: close");
   client.stop(); 
-  return (bufptr[0] != 0);                                  
+  return (bufptr[0] != 0);                              // if bufptr is empty then something definitely went wrong                               
 }
 
 /** Filters message and fits text to screen.
@@ -212,4 +239,9 @@ void rightShift(char * s){
     s[n] = s[n-1];
     n--; 
   }
+}
+
+void alarmMatch()
+{
+  Serial.println("Alarm Match!");
 }

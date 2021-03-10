@@ -37,7 +37,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "fonts.h"
-#include <pgmspace.h>
+// CHANGE: from avr/pgmspace.h to local pgmspace
+#include "pgmspace.h"
 
 // 
 //  Font data for Courier New 12pt

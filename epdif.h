@@ -31,6 +31,7 @@
 #include <Arduino.h>
 
 // Pin definition
+// CHANGE: fit to physical PIN setup
 #define RST_PIN         6
 #define DC_PIN          7
 #define CS_PIN          4
