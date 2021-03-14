@@ -1,9 +1,16 @@
 #include <SPI.h>
 #include <WiFi101.h>
 #include <RTCZero.h>
-#include "epd4in2.h"
-#include "epdpaint.h"
+#include "src/epd4in2/epd4in2.h"
+#include "src/epd4in2/epdpaint.h"
 #include "arduino_secrets.h"
+
+/* arduino_secrets.h should be created in the project folder
+ * Nessecary fields:
+ *    const char ssid[] = "[NETWORK-SSID]";
+ *    const char pass[] = "[PASSWORD]";
+ *    const char botEndpoint[] = "/bot[BOT-ACCESS-TOKEN]/getupdates?offset=-1";
+ */
 
 #define BUFSIZE     1600
 #define COLORED     0
