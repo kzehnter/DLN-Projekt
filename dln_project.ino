@@ -17,24 +17,21 @@
 #define UNCOLORED   1
 #define OPTIONSNR   1
 #define FONTNR      5
+#define ALARMNR     2
 
 // ---- RealTimeClock Module
-RTCZero rtc;
-
-/* Change these values to set the current initial time */
+// Change these values to set the current initial time
 const byte seconds = 0;
 const byte minutes = 0;
-const byte hours = 0;
+const byte hours = 12;
+// Contains times of alarms, hour, min, sec format
+const byte alarmTimes[ALARMNR][3] = {{12, 0, 30},
+                                     {12, 2, 0}};
+int alarmCounter = -1;
+RTCZero rtc;
+bool matched = false;
 
-/* Change these values to set the current initial date */
-const byte day = 10;
-const byte month = 3;
-const byte year = 21;
-
-const byte alarmSec = 0;
-const byte alarmMin = 1;
-const byte alarmHour = 0;
-
+// ---- Text storage
 char buf[BUFSIZE+1];
 char * bufptr = buf;
 
@@ -55,19 +52,26 @@ void setup() {
   
   rtc.begin();
   rtc.setTime(hours, minutes, seconds);
-  rtc.setDate(day, month, year);
-  rtc.setAlarmTime(alarmHour, alarmMin, alarmSec);          //change
-  rtc.enableAlarm(rtc.MATCH_HHMMSS);
-  rtc.attachInterrupt(alarmMatch);
-  rtc.standbyMode();
+  rtc.setDate(15, 3, 21);
+  createRTC();
 }
 
 void loop() {  
-  if (!connectWiFi()) return;
-  if (!getText()) return; 
-  if (!convertText()) return;
-  if (!writeOnDisplay()) return;
-  delay(10000);
+  if (matched) {
+    matched = false;
+    if (connectWiFi()) {
+      Serial.println("Connected");
+      if (getText()) {
+        Serial.println("Read message from telegram");
+        if (convertText()) { 
+          Serial.println(bufptr);
+          writeOnDisplay();
+          Serial.println("All done");
+        }
+      }
+    }
+    createRTC();
+  }
 };
 
 /** Connects to wifi
@@ -155,7 +159,7 @@ bool convertText() {
   buf[strlen(temp)-12] = '\0';                          // null terminate at the right point
 
   // ---- scan text and fits it to screen size
-  int i = 1;
+  unsigned int i = 1;                                   // unsigned for comparison with strlen
   int width = stdfont.Width;                            // take width of stdfont
   int counter = 400/width;                              // amount of chars per line for stdfont
   if (optionCheck(bufptr)) {                            // if buf begins with options
@@ -236,7 +240,7 @@ bool optionCheck(char * ptr) {
   return ((ptr[0] == '%' && ptr[OPTIONSNR+1] == '%') && (0 <= ptr[1]-'0' && ptr[1]-'0' < FONTNR));
 }
 
-/** Moves every char 2 to the right.
+/** Moves every char to the right.
  *  https://stackoverflow.com/questions/34908360/insert-a-character-at-a-specific-position-in-a-char-array
  */
 void rightShift(char * s){
@@ -248,7 +252,22 @@ void rightShift(char * s){
   }
 }
 
-void alarmMatch()
-{
-  Serial.println("Alarm Match!");
+/** Sets up alarm with possible multiple alarms.
+ */
+void createRTC(){
+  if (alarmCounter < ALARMNR-1) {                       // increment alarmCounter or set to 0
+    alarmCounter++;
+  } else alarmCounter = 0;
+  rtc.setAlarmTime(alarmTimes[alarmCounter][0],         // take right alarm and its times from array
+                   alarmTimes[alarmCounter][1], 
+                   alarmTimes[alarmCounter][2]);
+  rtc.enableAlarm(rtc.MATCH_HHMMSS);                    // hour, min, sec has to be equal to alarm
+  rtc.attachInterrupt(alarmMatch);
+  rtc.standbyMode();
+}
+
+/** Executed every time an alarm goes off.
+ */
+void alarmMatch(){
+  matched = true;
 }
