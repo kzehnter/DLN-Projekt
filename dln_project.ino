@@ -9,7 +9,7 @@
  * Nessecary fields:
  *    const char ssid[] = "[NETWORK-SSID]";
  *    const char pass[] = "[PASSWORD]";
- *    const char botEndpoint[] = "/bot[BOT-ACCESS-TOKEN]/getupdates?offset=-1";
+ *    const char botEndpoint[] = "/bot[BOT-ACCESS-TOKEN]/getUpdates?offset=-1";
  */
 
 #define BUFSIZE     1600
@@ -25,8 +25,8 @@ const byte seconds = 0;
 const byte minutes = 0;
 const byte hours = 12;
 // Contains times of alarms, hour, min, sec format
-const byte alarmTimes[ALARMNR][3] = {{12, 0, 30},
-                                     {12, 2, 0}};
+const byte alarmTimes[ALARMNR][3] = {{12, 0, 15}
+                                    ,{12, 2, 0}};
 int alarmCounter = -1;
 RTCZero rtc;
 bool matched = false;
